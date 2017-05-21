@@ -1,4 +1,5 @@
 #include "def.h"
+
 void addTowboats(bool towboats[]) {
 	int i;
 	for (i = 0; i < numberOfTowboats; i ++) {
@@ -73,18 +74,42 @@ void e_receive() {
 	}
 }
 
-void deletePermissions(bool permissions[], int length) {
+void emptyArray(bool array[], int length) {
 	for (int i = 0; i < length; i++)
-		permissions[i] = false;
+		array[i] = false;
 }
 
-bool equalArrays(int permissions[], int acti[], int length) {
-    for (int i = 0; i < length; i++)
+bool equalArrays(int permissions[], int activeShips[]) {
+    for (int i = 0; i < numberOfShips; i++)
         if (tab[i] != tab2[i])
             return false;
 
     return true;
 }
+
+void reserveTowboats() {
+	int i;
+	for (i = 0; i < numberOfTowboats; i ++) {
+		if (numberOf(reservedTowboats) == neededTowboats) {
+			break;
+		}
+		if (availableTowboats[i] == true) {
+			reservedTowboats[i] = true;
+		}
+	}
+}
+
+int numberOf(bool array[]) {
+	int i, counter = 0;
+	for (i = 0; i < numberOfTowboats; i++) {
+		if (array[i] == true) {
+			counter++;
+		}
+	}
+	return counter;
+}
+
+
 
 main()
 {
@@ -110,34 +135,40 @@ main()
 	bool activeShips[numberOfShips];
 	bool permissions[numberOfShips];
 	bool availableTowboats[numberOfTowboats];
-	bool ownedTowboats[numberOfTowboats];
 	bool reservedTowboats[numberOfTowboats];
 	bool ready;
 
 	while (true) {
 		//sekcja lokalna()
 
-		e_send("REQUEST", neededTowboats, ownedTowboats, priority);
+		e_send(0, REQUEST);
 		ready = false;
-		deletePermissions(permissions, numberOfShips);
+		emptyArray(permissions, numberOfShips);
 
 		while( !ready ) {
 			e_receive();
 
-			if ( equalArrays(permissions, statkiAktywne, numberOfShips) ) {
+			if ( equalArrays(permissions, statkiAktywne) ) {
 				gotowy = true;
 				while ( true ) {
-					holownikiZarezerwowane = holownikiDostępne.slice ( liczbaPotrzebnychHolowników )
-					if ( liczbaPotrzebnychHolowników != holownikiZarezerwowane.length() ) {
+					if (numberOf(availableTowboats > 0)) {
+						reserveTowboats();
+					}
+					if ( neededTowboats != numberOf( reservedTowboats ) ) {
 						break; 
 					}
 					e_receive();
 				}
-				holownikiKtoreMam.push(holownikiZarezerwowane);
-				holownikiDostępne.remove(holownikiZarezerwowane);
-				e_send(Qi, *, "ENTRY");
+
+				remove(reservedTowboats);
+				e_send(0, ENTRY);
 			} 
 		}
+		// sekcja krytyczna
+		addTowboats(reservedTowboats);
+		e_send(0, RELEASE);
+		emptyArray(reservedTowboats, numberOfTowboats);
+
 	}
 
 }
