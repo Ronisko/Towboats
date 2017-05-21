@@ -1,0 +1,100 @@
+
+type PACKET extends FRAME is record of
+	nadawca				: INTEGER
+	holowniki			: array [] of INTEGER
+	priorytet			: INTEGER
+	type				: MESSAGE
+end record
+
+liczbaPotrzebnychHolowników		: INTEGER
+pcktOut							: PACKET
+zgody 							: array [] of BOOLEAN
+holownikiDostępne 				: array [] of INTEGER
+holownikiPosiadane 				: array [] of INTEGER
+holownikiZarezerwowane			: array [] of INTEGER
+statkiAktywne 					: array [] of BOOLEAN
+priorytet 						: INTEGER
+gotowy							: BOOLEAN
+
+when e_internal(Pi, *) { do
+	for (int j = 0; j < S; ++j)
+	 	statkiAktywne[j] = true;
+
+	priorytet := timestamp(); // początkowy priorytet zgodny z kolejnością utworzenia poszczególnych statków
+	holownikiDostępne = H; // wszystkie holowniki są dostępne
+	liczbaPotrzebnychHolowników = h[i]; 
+} end when;
+
+when e_send(Pi, Pj, msgOut: MESSAGE) { do
+	pcktOut.holowniki = holownikiPosiadane; // załadowanie informacji o zagarniętych holownikach używane przy "WEJŚCIE" i "ZWOLNIENIE"
+	pcktOut.priorytet := priorytet; // informacja o priorytecie używane przy "ŻĄDANIE"
+	pcktOut.type := msgOut;
+	send(Qi, Qj, pcktOut);
+} end when;
+
+when e_receive(Qj, Qi, pcktIn: PACKET) { do
+	// jeśli otrzymaliśmy "ZGODA" dodajemy dany statek do listy
+	if (pcktIn.type == "ZGODA") {
+		zgody.push(Qj); 
+	}
+	// jeśli otrzymaliśmy "ŻĄDANIE":
+	else if (pcktIn.type == "ŻĄDANIE") {
+		statkiAktywne.push(Qj); // oznaczamy statek nadawcę jako aktywny
+		if (statkiAktywne[i] == true) { // jeśli jesteśmy aktywni
+			
+			if (pcktIn.priorytet > priorytet) {  
+				e_send(Qi, Qj, "ZGODA"); // wysyłamy "ZGODA"
+			}
+		}
+	}
+	// jeśli otrzymaliśmy "ZWOLNIENIE":
+	else if (pcktIn.type == "ZWOLNIENIE") {
+		holownikiDostępne.push(pcktIn.holowniki); // dodajemy zwolnione holowniki do dostępnych
+	}
+	// jeśli otrzymaliśmy "WEJŚCIE":
+	else if (pcktIn.type == "WEJŚCIE") {
+		holownikiDostępne.remove(pcktIn.holowniki) // usuwamy zagarnięte holowniki z dostępnych
+		statkiAktywne.remove(Qj); // usuwamy statek będący w sekcji krytycznej z aktywnych
+	}
+} end when;
+
+while(1) {
+	SEKCJA_LOKALNA();
+
+	// ogłoszenie wszystkim statkom chęci wejścia do sekcji krytycznej
+	e_send(Qi, *, "ŻĄDANIE");
+	// pętla tak długo, aż nie otrzymamy informacji od wszystkich aktywnych statków, że można wejść
+	gotowy = false;
+	zgody = [];
+	while(!gotowy) {
+		// sprawdzamy czy jest jakaś wiadomość do odczytania
+		e_receive();
+
+		// gdy otrzymamy zgodę od każdego z aktywnych statków		
+		if ( zgody.length == statkiAktywne.length ) {
+			gotowy = true;
+			//w nieskończonej pętli rezerwujemy holowniki z listy dostępnych 
+			while ( true ) {
+				holownikiZarezerwowane = holownikiDostępne.slice ( liczbaPotrzebnychHolowników )
+				// gdy mamy wystarczającą liczbę holowników przerywamy pętlę
+				if ( liczbaPotrzebnychHolowników != holownikiZarezerwowane.length() ) {
+					break; 
+				}
+				// gdy brakuje nam holowników słuchamy nadchodzących wieści o zwolnionych holownikach
+				e_receive();
+			}
+			//wysłanie informacji o zarezerwowanych holownikach 
+			holownikiKtoreMam.push(holownikiZarezerwowane);
+			holownikiDostępne.remove(holownikiZarezerwowane);
+			e_send(Qi, *, "WEJŚCIE");
+		} 
+	}
+
+	SEKCJA_KRYTYCZNA();
+	
+	//wyjście z sekcji krytycznej wysłanie komunikatu o zwolnieniu 
+	holownikiKtoreMam.remove(holownikiZarezerwowane)
+	holownikiDostępne.push(holownikiZarezerwowane)
+	e_send(Qi, *, "ZWOLNIENIE");
+}
+//TODO pozmieniać push na odwołanie się do indeksu tablicy
