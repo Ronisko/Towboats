@@ -1,5 +1,4 @@
 #include "def.h"
-#include <sys/time.h>
 
 long long current_timestamp() {
     struct timeval te; 
@@ -31,10 +30,11 @@ main()
 	for( i = 0 ; i < nproc ; i++ )
 	{
 		pvm_initsend(PvmDataDefault);
-		pvm_pkint(SHIPSNUM, 1, 1); // obsluzone
-		pvm_pklong(current_timestamp(), 1, 1); //obsluzone
-		pvm_pkint(neededTowboats[i], 1, 1); //obsluzone
-		pvm_pkint(&tids, SHIPSNUM, 1); // obsluzone
+		pvm_pkint(numberOfShips, 1, 1);
+		pvm_pklong(current_timestamp(), 1, 1);
+		pvm_pkint(neededTowboats[i], 1, 1);
+		pvm_pkint(&tids, numberOfShips, 1);
+		pvm_pkint(numberOfTowboats, 1, 1);
 	   	pvm_send(tids[i], MSG_MSTR);
 	}
 

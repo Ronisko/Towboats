@@ -3,9 +3,10 @@
 #include <pvm3.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
+
 
 #define SLAVENAME "slave"
-#define SLAVENUM   26
 
 #define NAMESIZE   64
 

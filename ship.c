@@ -78,12 +78,11 @@ main()
 	  * internal
 	  */
 	pvm_recv( -1, MSG_MSTR );
-	pvm_upkint(&numberOfShips, 1, 1); //ok
-	pvm_upkint(&priority, 1, 1); // ok
-	pvm_upkint(&neededTowboats, 1, 1); // ok
-	pvm_upkint(&ships, numberOfShips, 1); // ok
-	pvm_upkint(&tid, 1, 1 );
-	pvm_upklong(&neededTowboats, 1, 1)
+	pvm_upkint(&numberOfShips, 1, 1);
+	pvm_upklong(&priority, 1, 1);
+	pvm_upkint(&neededTowboats, 1, 1);
+	pvm_upkint(&ships, numberOfShips, 1);
+	pvm_upkint(&neededTowboats, 1, 1)
 
 	/* */
 
