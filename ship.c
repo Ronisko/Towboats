@@ -1,23 +1,31 @@
 #include "def.h"
 
-void e_send( int to, int message ) {
+void e_send( int receiver, int message ) {
 	pvm_initsend(PvmDataDefault);
-	switch( message ) {
-		case 1:
-			pvm_send(to, PERMISSION);
+	pvm_pkint(mytid, 1, 1);
+
+	switch(message) {
+		case 1: // PERMISSION
 			break;
-		case 2:
-			pvm_send(to, REQUEST);
+		case 2: // REQUEST
+			pvm_pkint(priority, 1, 1);
 			break;
-		case 3:
-			pvm_send(to, ENTRY);
-			break;
-		case 4:
-			pvm_send(to, RELEASE);
+		case 3: // ENTRY
+		case 4: // RELEASE
+			pvm_pkint(availableTowboats, numberOfTowboats, 1);
 			break;
 	}
 
-
+	if (!receiver) {
+		int i;
+		for (i=0; i < numberOfShips) {
+			if (ships[i] != mytid) {
+				pvm_send(ships[i], message);
+			}
+		}
+	} else {
+		pvm_send(receiver, message);
+	}
 }
 
 void e_receive() {
@@ -49,14 +57,12 @@ void e_receive() {
 	}
 }
 
-void deletePermissions(bool *permissions, int number) {
-	for (int i = 0; i < number; i++)
-	{
+void deletePermissions(bool permissions[], int length) {
+	for (int i = 0; i < length; i++)
 		permissions[i] = false;
-	}
 }
 
-bool equalArrays(int tab[], int tab2[], int length) {
+bool equalArrays(int permissions[], int acti[], int length) {
     for (int i = 0; i < length; i++)
         if (tab[i] != tab2[i])
             return false;
@@ -66,13 +72,13 @@ bool equalArrays(int tab[], int tab2[], int length) {
 
 main()
 {
-	int numberOfShips;
-	long long priority;
-	int neededTowboats;
-	int ships[];
+	int numberOfShips; // set
+	long long priority; // set
+	int neededTowboats; // set
+	int ships[5]; // set
+	int numberOfTowboats; // set
 
 	int mytid = pvm_mytid();
-	gethostname(slave_name, NAMESIZE);
 
 	/**
 	  * internal
@@ -82,28 +88,27 @@ main()
 	pvm_upklong(&priority, 1, 1);
 	pvm_upkint(&neededTowboats, 1, 1);
 	pvm_upkint(&ships, numberOfShips, 1);
-	pvm_upkint(&neededTowboats, 1, 1)
+	pvm_upkint(&numberOfTowboats, 1, 1)
 
 	/* */
 
-	bool permissions[];
-	int availableTowboats[];
-	int ownedTowboats[];
-	int reservedTowboats[];
+	bool permissions[numberOfShips];
+	bool availableTowboats[numberOfTowboats];
+	bool ownedTowboats[numberOfTowboats];
+	bool reservedTowboats[numberOfTowboats];
 	bool ready;
-
 
 	while (true) {
 		//sekcja lokalna()
 
 		e_send("REQUEST", neededTowboats, ownedTowboats, priority);
 		ready = false;
-		deletePermissions(permissions);
+		deletePermissions(permissions, numberOfShips);
 
 		while( !ready ) {
 			e_receive();
 
-			if ( equalArrays(zgody, statkiAktywne, ) ) {
+			if ( equalArrays(permissions, statkiAktywne, numberOfShips) ) {
 				gotowy = true;
 				while ( true ) {
 					holownikiZarezerwowane = holownikiDostępne.slice ( liczbaPotrzebnychHolowników )
@@ -119,6 +124,4 @@ main()
 		}
 	}
 
-
 }
-
