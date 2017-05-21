@@ -47,15 +47,16 @@ when e_receive(Qj, Qi, pcktIn: PACKET) { do
 			}
 		}
 	}
-	// jeśli otrzymaliśmy "ZWOLNIENIE":
-	else if (pcktIn.type == "ZWOLNIENIE") {
-		holownikiDostępne.push(pcktIn.holowniki); // dodajemy zwolnione holowniki do dostępnych
-	}
 	// jeśli otrzymaliśmy "WEJŚCIE":
 	else if (pcktIn.type == "WEJŚCIE") {
 		holownikiDostępne.remove(pcktIn.holowniki) // usuwamy zagarnięte holowniki z dostępnych
 		statkiAktywne.remove(Qj); // usuwamy statek będący w sekcji krytycznej z aktywnych
 	}
+	// jeśli otrzymaliśmy "ZWOLNIENIE":
+	else if (pcktIn.type == "ZWOLNIENIE") {
+		holownikiDostępne.push(pcktIn.holowniki); // dodajemy zwolnione holowniki do dostępnych
+	}
+	
 } end when;
 
 while(1) {

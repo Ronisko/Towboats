@@ -1,4 +1,20 @@
 #include "def.h"
+void addTowboats(bool towboats[]) {
+	int i;
+	for (i = 0; i < numberOfTowboats; i ++) {
+		if (towboats[i] == true) {
+			availableTowboats[i] = true;
+		}
+	}
+}
+void removeTowboats(bool towboats[]) {
+	int i;
+	for (i = 0; i < numberOfTowboats; i ++) {
+		if (towboats[i] == true) {
+			availableTowboats[i] = false;
+		}
+	}
+}
 
 void e_send( int receiver, int message ) {
 	pvm_initsend(PvmDataDefault);
@@ -30,7 +46,7 @@ void e_send( int receiver, int message ) {
 
 void e_receive() {
 	int j, receivedPriority;
-	int towboats[];
+	bool towboats[];
 	if ( pvm_nrecv(-1, PERMISSION) ) {
 		pvm_upkint(&j, 1, 1);
 		zgody[j] = true; 
@@ -39,21 +55,21 @@ void e_receive() {
 		pvm_upkint(&j, 1, 1);
 		pvm_upkint(&receivedPriority, 1, 1);
 		statkiAktywne[j] = true;
-		if (statkiAktywne[i] == true) {
-			
+		if (statkiAktywne[mytid] == true) {
 			if (receivedPriority > priority) {  
-				e_send(Qi, Qj, PERMISSION);
+				e_send(j, PERMISSION);
 			}
 		}
 	}
-	else if ( pvm_nrecv(-1, REQUEST) ) {
-		pvm_upkint(towboats, SIZE, 1);
-		holownikiDostępne.push(pcktIn.holowniki);
-	}
 	else if ( pvm_nrecv(-1, ENTRY) ) {
 		pvm_upkint(&j, 1, 1);
-		holownikiDostępne.remove(pcktIn.holowniki)
-		statkiAktywne[j] = false;
+		pvm_upkint(towboats, numberOfTowboats, 1);
+		removeTowboats(towboats);
+		activeShips[j] = false;
+	}
+	else if ( pvm_nrecv(-1, RELEASE) ) {
+		pvm_upkint(towboats, numberOfTowboats, 1);
+		addTowboats(towboats);
 	}
 }
 
@@ -91,7 +107,7 @@ main()
 	pvm_upkint(&numberOfTowboats, 1, 1)
 
 	/* */
-
+	bool activeShips[numberOfShips];
 	bool permissions[numberOfShips];
 	bool availableTowboats[numberOfTowboats];
 	bool ownedTowboats[numberOfTowboats];
