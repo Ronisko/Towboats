@@ -1,5 +1,17 @@
 #include "def.h"
 
+int numberOfShips; // set
+long long priority; // set
+int neededTowboats; // set
+int ships[5]; // set
+int numberOfTowboats; // set
+int mytid;
+
+bool activeShips[5];
+bool permissions[5];
+bool availableTowboats[10];
+bool reservedTowboats[10];
+
 void addTowboats(bool towboats[]) {
 	int i;
 	for (i = 0; i < numberOfTowboats; i ++) {
@@ -35,7 +47,7 @@ void e_send( int receiver, int message ) {
 
 	if (!receiver) {
 		int i;
-		for (i=0; i < numberOfShips) {
+		for (i=0; i < numberOfShips; i ++) {
 			if (ships[i] != mytid) {
 				pvm_send(ships[i], message);
 			}
@@ -47,16 +59,16 @@ void e_send( int receiver, int message ) {
 
 void e_receive() {
 	int j, receivedPriority;
-	bool towboats[];
+	bool towboats[numberOfTowboats];
 	if ( pvm_nrecv(-1, PERMISSION) ) {
 		pvm_upkint(&j, 1, 1);
-		zgody[j] = true; 
+		permissions[j] = true; 
 	}
 	else if ( pvm_nrecv(-1, REQUEST) ) {
 		pvm_upkint(&j, 1, 1);
 		pvm_upkint(&receivedPriority, 1, 1);
-		statkiAktywne[j] = true;
-		if (statkiAktywne[mytid] == true) {
+		activeShips[j] = true;
+		if (activeShips[mytid] == true) {
 			if (receivedPriority > priority) {  
 				e_send(j, PERMISSION);
 			}
@@ -75,13 +87,15 @@ void e_receive() {
 }
 
 void emptyArray(bool array[], int length) {
-	for (int i = 0; i < length; i++)
+	int i;
+	for (i = 0; i < length; i++)
 		array[i] = false;
 }
 
-bool equalArrays(int permissions[], int activeShips[]) {
-    for (int i = 0; i < numberOfShips; i++)
-        if (tab[i] != tab2[i])
+bool equalArrays(bool permissions[], bool activeShips[]) {
+    int i;
+    for (i = 0; i < numberOfShips; i++)
+        if (permissions[i] != activeShips[i])
             return false;
 
     return true;
@@ -113,13 +127,7 @@ int numberOf(bool array[]) {
 
 main()
 {
-	int numberOfShips; // set
-	long long priority; // set
-	int neededTowboats; // set
-	int ships[5]; // set
-	int numberOfTowboats; // set
-
-	int mytid = pvm_mytid();
+	mytid = pvm_mytid();
 
 	/**
 	  * internal
@@ -129,13 +137,10 @@ main()
 	pvm_upklong(&priority, 1, 1);
 	pvm_upkint(&neededTowboats, 1, 1);
 	pvm_upkint(&ships, numberOfShips, 1);
-	pvm_upkint(&numberOfTowboats, 1, 1)
+	pvm_upkint(&numberOfTowboats, 1, 1);
 
 	/* */
-	bool activeShips[numberOfShips];
-	bool permissions[numberOfShips];
-	bool availableTowboats[numberOfTowboats];
-	bool reservedTowboats[numberOfTowboats];
+	
 	bool ready;
 
 	while (true) {
@@ -148,8 +153,8 @@ main()
 		while( !ready ) {
 			e_receive();
 
-			if ( equalArrays(permissions, statkiAktywne) ) {
-				gotowy = true;
+			if ( equalArrays(permissions, activeShips) ) {
+				ready = true;
 				while ( true ) {
 					if (numberOf(availableTowboats > 0)) {
 						reserveTowboats();

@@ -6,7 +6,7 @@
 #include <sys/time.h>
 
 
-#define SLAVENAME "slave"
+#define SHIPNAME "ship"
 
 #define NAMESIZE   64
 
