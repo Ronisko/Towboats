@@ -10,10 +10,11 @@ double current_timestamp() {
 
 main()
 {
-	
+	int mytid = pvm_mytid();
 	int i;
 	int numberOfShips = 5;
 	int numberOfTowboats = 10;
+	char msgRaport[5];
 
 	// printf("Podaj liczbe statkow.\n");
 	// scanf("%d", &numberOfShips);
@@ -32,6 +33,7 @@ main()
 	{
 		double prior = current_timestamp();
 		pvm_initsend(PvmDataDefault);
+		pvm_pkint(&mytid, 1, 1);
 		pvm_pkint(&numberOfShips, 1, 1);
 		pvm_pkdouble(&prior, 1, 1);
 		pvm_pkint(&neededTowboats[i], 1, 1);
@@ -39,6 +41,12 @@ main()
 		pvm_pkint(&numberOfTowboats, 1, 1);
 	   	pvm_send(tids[i], MSG_MSTR);
 	}
-
+	while(true) {
+		int slaveTid;
+		pvm_rcv(-1,RAPORT);
+		pvm_upkint(&slaveTid, 1, 1);
+		pvm_upkstr(msgRaport);
+		printf("Slave nr: %d w fazie: %s\n", slaveTid, msgRaport);
+	}
 	pvm_exit();
 }

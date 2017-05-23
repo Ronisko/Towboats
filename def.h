@@ -15,4 +15,5 @@
 #define REQUEST 3
 #define ENTRY 4
 #define RELEASE 5
+#define RAPORT 6
 

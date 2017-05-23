@@ -1,5 +1,6 @@
 #include "def.h"
 
+int masterTid;
 int mytid;
 int numberOfShips; // set
 double priority; // set
@@ -43,15 +44,21 @@ void e_send( int receiver, int message ) {
 	pvm_pkint(&mytid, 1, 1);
 
 	switch(message) {
-		case 1: // PERMISSION
-			break;
-		case 2: // REQUEST
-			pvm_pkdouble(&priority, 1, 1);
-			break;
-		case 3: // ENTRY
-		case 4: // RELEASE
-			pvm_pkshort(availableTowboats, numberOfTowboats, 1);
-			break;
+		case 2: // PERMISSION
+			{
+				break;
+			}
+		case 3: // REQUEST
+			{
+				pvm_pkdouble(&priority, 1, 1);
+				break;
+			}
+		case 4: // ENTRY
+		case 5: // RELEASE
+			{
+				pvm_pkshort(availableTowboats, numberOfTowboats, 1);
+				break;
+			}
 	}
 
 	if (!receiver) {
@@ -64,6 +71,32 @@ void e_send( int receiver, int message ) {
 	} else {
 		pvm_send(receiver, message);
 	}
+	pvm_initsend(PvmDataDefault);
+	pvm_pkint(&mytid, 1, 1);
+
+	switch(message) {
+		case 2: // PERMISSION
+			{
+				pvm_pckstr("PERMI");
+				break;
+			}
+		case 3: // REQUEST
+			{
+				pvm_pckstr("REQUE");
+				break;
+			}
+		case 4: // ENTRY
+			{
+				pvm_pckstr("ENTRY");
+				break;
+			}
+		case 5: // RELEASE
+			{
+				pvm_pckstr("RELEA");
+				break;
+			}
+	}
+	pvm_send(masterTid, RAPORT);
 }
 
 void e_receive() {
@@ -144,6 +177,7 @@ main()
 	  * internal
 	  */
 	pvm_recv( -1, MSG_MSTR );
+	pvm_upkint(&masterTid, 1, 1);
 	pvm_upkint(&numberOfShips, 1, 1);
 	pvm_upkdouble(&priority, 1, 1);
 	pvm_upkint(&neededTowboats, 1, 1);
@@ -191,7 +225,5 @@ main()
 		addTowboats(reservedTowboats);
 		e_send(0, RELEASE);
 		emptyArray(reservedTowboats, numberOfTowboats);
-
 	}
-
 }
