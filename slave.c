@@ -12,6 +12,15 @@ short permissions[5];
 short availableTowboats[10];
 short reservedTowboats[10];
 
+int getIndexByTid(int tid) {
+	int i;
+	for ( i=0; i<numberOfShips; i++ ) {
+		if (ships[i] == tid) {
+			return i;
+		}
+	}
+}
+
 void addTowboats(short towboats[]) {
 	int i;
 	for (i = 0; i < numberOfTowboats; i ++) {
@@ -58,37 +67,40 @@ void e_send( int receiver, int message ) {
 }
 
 void e_receive() {
-	int j;
+	int rcvTid;
 	double receivedPriority;
 	short towboats[numberOfTowboats];/*
 	if ( pvm_nrecv(-1, PERMISSION) ) {
-		pvm_upkint(&j, 1, 1);
-		permissions[j] = 1; 
+		pvm_upkint(&rcvTid, 1, 1);
+		permissions[rcvTid] = 1; 
 	}*/
 	 if ( pvm_nrecv(-1, REQUEST) ) {
-		pvm_upkint(&j, 1, 1);
+		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkdouble(&receivedPriority, 1, 1);
-		int is;
+		int index = getIndexByTid(rcvTid);
+		/*int is;
 		for (is = 0; is<5; is++) {
-			if (j == ships[is]) {
+			if (rcvTid == ships[is]) {
 				while(true) {}
 			}
+		}*/
+		activeShips[index] = 1;
+		if (activeShips[mytid] == 1) {
+			if (receivedPriority > priority) {  
+				pvm_initsend(PvmDataDefault);
+				pvm_pkint(&mytid, 1, 1);
+				e_send(rcvTid, PERMISSION);
+			}
 		}
-		activeShips[j] = 1;
-		//if (activeShips[mytid] == 1) {
-			//if (receivedPriority > priority) {  
-				//pvm_initsend(PvmDataDefault);
-				//e_send(j, PERMISSION);
-			//}
-		//}
 	}
 	/*else if ( pvm_nrecv(-1, ENTRY) ) {
-		pvm_upkint(&j, 1, 1);
+		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkshort(towboats, numberOfTowboats, 1);
 		removeTowboats(towboats);
-		activeShips[j] = 0;
+		activeShips[rcvTid] = 0;
 	}
 	else if ( pvm_nrecv(-1, RELEASE) ) {
+		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkshort(towboats, numberOfTowboats, 1);
 		addTowboats(towboats);
 	}*/
@@ -147,12 +159,6 @@ main()
 	pvm_upkint(&numberOfTowboats, 1, 1);
 
 	/* */
-//	for (is = 0; is<5; is++) {
-  //              if (mytid == ships[is]) {
-    //                    while(true) {}
-//		}
-//	}
-
 	
 	short ready;
 	while (true) {
