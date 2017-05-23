@@ -69,41 +69,33 @@ void e_send( int receiver, int message ) {
 void e_receive() {
 	int rcvTid;
 	double receivedPriority;
-	short towboats[numberOfTowboats];/*
+	short towboats[numberOfTowboats];
 	if ( pvm_nrecv(-1, PERMISSION) ) {
 		pvm_upkint(&rcvTid, 1, 1);
 		permissions[rcvTid] = 1; 
-	}*/
-	 if ( pvm_nrecv(-1, REQUEST) ) {
+        }	
+	if ( pvm_nrecv(-1, REQUEST) ) {
 		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkdouble(&receivedPriority, 1, 1);
 		int index = getIndexByTid(rcvTid);
-		/*int is;
-		for (is = 0; is<5; is++) {
-			if (rcvTid == ships[is]) {
-				while(true) {}
-			}
-		}*/
 		activeShips[index] = 1;
-		if (activeShips[mytid] == 1) {
-			if (receivedPriority > priority) {  
+		if (receivedPriority > priority && activeShips[mytid] == 1) {
 				pvm_initsend(PvmDataDefault);
 				pvm_pkint(&mytid, 1, 1);
 				e_send(rcvTid, PERMISSION);
-			}
 		}
 	}
-	/*else if ( pvm_nrecv(-1, ENTRY) ) {
+	if ( pvm_nrecv(-1, ENTRY) ) {
 		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkshort(towboats, numberOfTowboats, 1);
 		removeTowboats(towboats);
 		activeShips[rcvTid] = 0;
 	}
-	else if ( pvm_nrecv(-1, RELEASE) ) {
+	if ( pvm_nrecv(-1, RELEASE) ) {
 		pvm_upkint(&rcvTid, 1, 1);
 		pvm_upkshort(towboats, numberOfTowboats, 1);
 		addTowboats(towboats);
-	}*/
+	}
 }
 
 void emptyArray(short array[], int length) {
@@ -145,7 +137,7 @@ int numberOf(short array[]) {
 
 main()
 {
-	int is;
+	int i;
 	mytid = pvm_mytid();
 
 	/**
@@ -161,6 +153,14 @@ main()
 	/* */
 	
 	short ready;
+	
+	for (i=0; i < numberOfShips; i++) {
+		activeShips[i] = 1;
+	}
+	for (i=0; i < numberOfTowboats; i++) {
+		availableTowboats[i] = 0;
+		reservedTowboats[i] = 0;
+	}
 	while (true) {
 		//sekcja lokalna()
 
@@ -171,7 +171,7 @@ main()
 		while( !ready ) {
 			e_receive();
 
-			/*if ( equalArrays(permissions, activeShips) ) {
+			if ( equalArrays(permissions, activeShips) ) {
 				ready = 1;
 				while ( true ) {
 					if (numberOf(availableTowboats) > 0) {
@@ -185,7 +185,7 @@ main()
 
 				removeTowboats(reservedTowboats);
 				e_send(0, ENTRY);
-			} */
+			}
 		}
 		// sekcja krytyczna
 		addTowboats(reservedTowboats);

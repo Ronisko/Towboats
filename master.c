@@ -30,10 +30,10 @@ main()
 
 	for( i = 0 ; i < nproc ; i++ )
 	{
-		double time = current_timestamp();
+		double prior = current_timestamp();
 		pvm_initsend(PvmDataDefault);
 		pvm_pkint(&numberOfShips, 1, 1);
-		pvm_pkdouble(&time, 1, 1);
+		pvm_pkdouble(&prior, 1, 1);
 		pvm_pkint(&neededTowboats[i], 1, 1);
 		pvm_pkint(tids, numberOfShips, 1);
 		pvm_pkint(&numberOfTowboats, 1, 1);
