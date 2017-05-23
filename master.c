@@ -29,9 +29,10 @@ main()
 
 	nproc = pvm_spawn(SLAVENAME, NULL, PvmTaskDefault, "", numberOfShips, tids);
 
+	double prior = current_timestamp();
 	for( i = 0 ; i < nproc ; i++ )
 	{
-		double prior = current_timestamp();
+		prior++;
 		pvm_initsend(PvmDataDefault);
 		pvm_pkint(&mytid, 1, 1);
 		pvm_pkint(&numberOfShips, 1, 1);
@@ -43,7 +44,7 @@ main()
 	}
 	while(true) {
 		int slaveTid;
-		pvm_rcv(-1,RAPORT);
+		pvm_recv(-1, RAPORT);
 		pvm_upkint(&slaveTid, 1, 1);
 		pvm_upkstr(msgRaport);
 		printf("Slave nr: %d w fazie: %s\n", slaveTid, msgRaport);
