@@ -4,9 +4,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
-
-#define SHIPNAME "ship"
+#define SLAVENAME "slave"
 
 #define NAMESIZE   64
 

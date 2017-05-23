@@ -1,47 +1,49 @@
 #include "def.h"
-
+// WYSYLAMY DO ZLYCH TIDÓW  W MASTERZE DODAĆ WYSYALNIE 
+//TIDÓW WSZYSTKICH
+// na pewno trzeba pozmieniać te shorte na shorty tak, żeby mi nigdy nie rzucało żadnych warnów, bo możliwe, że przez to się jebie
+int mytid;
 int numberOfShips; // set
-long long priority; // set
+double priority; // set
 int neededTowboats; // set
 int ships[5]; // set
 int numberOfTowboats; // set
-int mytid;
 
-bool activeShips[5];
-bool permissions[5];
-bool availableTowboats[10];
-bool reservedTowboats[10];
+short activeShips[5];
+short permissions[5];
+short availableTowboats[10];
+short reservedTowboats[10];
 
-void addTowboats(bool towboats[]) {
+void addTowboats(short towboats[]) {
 	int i;
 	for (i = 0; i < numberOfTowboats; i ++) {
-		if (towboats[i] == true) {
-			availableTowboats[i] = true;
+		if (towboats[i] == 1) {
+			availableTowboats[i] = 1;
 		}
 	}
 }
-void removeTowboats(bool towboats[]) {
+void removeTowboats(short towboats[]) {
 	int i;
 	for (i = 0; i < numberOfTowboats; i ++) {
-		if (towboats[i] == true) {
-			availableTowboats[i] = false;
+		if (towboats[i] == 1) {
+			availableTowboats[i] = 0;
 		}
 	}
 }
 
 void e_send( int receiver, int message ) {
 	pvm_initsend(PvmDataDefault);
-	pvm_pkint(mytid, 1, 1);
+	pvm_pkint(&mytid, 1, 1);
 
 	switch(message) {
 		case 1: // PERMISSION
 			break;
 		case 2: // REQUEST
-			pvm_pkint(priority, 1, 1);
+			pvm_pkdouble(&priority, 1, 1);
 			break;
 		case 3: // ENTRY
 		case 4: // RELEASE
-			pvm_pkint(availableTowboats, numberOfTowboats, 1);
+			pvm_pkshort(availableTowboats, numberOfTowboats, 1);
 			break;
 	}
 
@@ -59,16 +61,16 @@ void e_send( int receiver, int message ) {
 
 void e_receive() {
 	int j, receivedPriority;
-	bool towboats[numberOfTowboats];
+	short towboats[numberOfTowboats];
 	if ( pvm_nrecv(-1, PERMISSION) ) {
 		pvm_upkint(&j, 1, 1);
-		permissions[j] = true; 
+		permissions[j] = 1; 
 	}
 	else if ( pvm_nrecv(-1, REQUEST) ) {
 		pvm_upkint(&j, 1, 1);
-		pvm_upkint(&receivedPriority, 1, 1);
-		activeShips[j] = true;
-		if (activeShips[mytid] == true) {
+		pvm_upkdouble(&receivedPriority, 1, 1);
+		activeShips[j] = 1;
+		if (activeShips[mytid] == 1) {
 			if (receivedPriority > priority) {  
 				e_send(j, PERMISSION);
 			}
@@ -78,7 +80,7 @@ void e_receive() {
 		pvm_upkint(&j, 1, 1);
 		pvm_upkint(towboats, numberOfTowboats, 1);
 		removeTowboats(towboats);
-		activeShips[j] = false;
+		activeShips[j] = 0;
 	}
 	else if ( pvm_nrecv(-1, RELEASE) ) {
 		pvm_upkint(towboats, numberOfTowboats, 1);
@@ -86,19 +88,19 @@ void e_receive() {
 	}
 }
 
-void emptyArray(bool array[], int length) {
+void emptyArray(short array[], int length) {
 	int i;
 	for (i = 0; i < length; i++)
-		array[i] = false;
+		array[i] = 0;
 }
 
-bool equalArrays(bool permissions[], bool activeShips[]) {
+short equalArrays(short permissions[], short activeShips[]) {
     int i;
     for (i = 0; i < numberOfShips; i++)
         if (permissions[i] != activeShips[i])
-            return false;
+            return 0;
 
-    return true;
+    return 1;
 }
 
 void reserveTowboats() {
@@ -107,23 +109,21 @@ void reserveTowboats() {
 		if (numberOf(reservedTowboats) == neededTowboats) {
 			break;
 		}
-		if (availableTowboats[i] == true) {
-			reservedTowboats[i] = true;
+		if (availableTowboats[i] == 1) {
+			reservedTowboats[i] = 1;
 		}
 	}
 }
 
-int numberOf(bool array[]) {
+int numberOf(short array[]) {
 	int i, counter = 0;
 	for (i = 0; i < numberOfTowboats; i++) {
-		if (array[i] == true) {
+		if (array[i] == 1) {
 			counter++;
 		}
 	}
 	return counter;
 }
-
-
 
 main()
 {
@@ -134,29 +134,29 @@ main()
 	  */
 	pvm_recv( -1, MSG_MSTR );
 	pvm_upkint(&numberOfShips, 1, 1);
-	pvm_upklong(&priority, 1, 1);
+	pvm_upkdouble(&priority, 1, 1);
 	pvm_upkint(&neededTowboats, 1, 1);
-	pvm_upkint(&ships, numberOfShips, 1);
+	pvm_upkint(ships, numberOfShips, 1);
 	pvm_upkint(&numberOfTowboats, 1, 1);
 
 	/* */
 	
-	bool ready;
+	short ready;
 
 	while (true) {
 		//sekcja lokalna()
 
 		e_send(0, REQUEST);
-		ready = false;
+		ready = 0;
 		emptyArray(permissions, numberOfShips);
 
 		while( !ready ) {
 			e_receive();
 
 			if ( equalArrays(permissions, activeShips) ) {
-				ready = true;
+				ready = 1;
 				while ( true ) {
-					if (numberOf(availableTowboats > 0)) {
+					if (numberOf(availableTowboats) > 0) {
 						reserveTowboats();
 					}
 					if ( neededTowboats != numberOf( reservedTowboats ) ) {

@@ -1,15 +1,16 @@
 #include "def.h"
 
-long long current_timestamp() {
+double current_timestamp() {
     struct timeval te; 
     gettimeofday(&te, NULL); // get current time
-    long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000; // caculate milliseconds
+    double milliseconds = te.tv_sec*1000 + te.tv_usec/1000; // caculate milliseconds
     // printf("milliseconds: %lld\n", milliseconds);
     return milliseconds;
 }
 
 main()
 {
+	
 	int i;
 	int numberOfShips = 5;
 	int numberOfTowboats = 10;
@@ -25,19 +26,19 @@ main()
 	int neededTowboats[5] = {5, 8, 2, 5, 10};
 	int nproc;
 
-	nproc = pvm_spawn(SHIPNAME, NULL, PvmTaskDefault, "", numberOfShips, tids);
+	nproc = pvm_spawn(SLAVENAME, NULL, PvmTaskDefault, "", numberOfShips, tids);
 
 	for( i = 0 ; i < nproc ; i++ )
 	{
+		double time = current_timestamp();
 		pvm_initsend(PvmDataDefault);
-		pvm_pkint(numberOfShips, 1, 1);
-		pvm_pklong(current_timestamp(), 1, 1);
-		pvm_pkint(neededTowboats[i], 1, 1);
-		pvm_pkint(&tids, numberOfShips, 1);
-		pvm_pkint(numberOfTowboats, 1, 1);
+		pvm_pkint(&numberOfShips, 1, 1);
+		pvm_pkdouble(&time, 1, 1);
+		pvm_pkint(&neededTowboats[i], 1, 1);
+		pvm_pkint(tids, numberOfShips, 1);
+		pvm_pkint(&numberOfTowboats, 1, 1);
 	   	pvm_send(tids[i], MSG_MSTR);
 	}
 
 	pvm_exit();
 }
-
