@@ -14,7 +14,6 @@ short permissions[5];
 short availableTowboats[10];
 short reservedTowboats[10];
 
-char *nazwa;
 FILE *fp;
 
 void openFile() {
@@ -41,16 +40,6 @@ void saveChar(char c[]){
 	fprintf(fp, "%d\t", mytid);
 	fprintf(fp, "%s\n", c);
 	closeFile();
-}
-
-char* tidToChar(int tid) {
-	char str[10];
-	sprintf(str, "%d", tid);
-	str[6] = '.';
-	str[7] = 't';
-	str[8] = 'x';
-	str[9] = 't';
-	return str; 	
 }
 
 int getIndexByTid(int tid) {
@@ -93,8 +82,7 @@ void e_send( int receiver, int message ) {
 			{
 				pvm_pkdouble(&priority, 1, 1);
 				saveDouble(priority);
-			        saveChar("Pakuje priority w e_send case 3");
-
+				saveChar("Pakuje priority w e_send case 3");
 				break;
 			}
 		case 4: // ENTRY
@@ -232,7 +220,6 @@ main()
 {
 	int i;
 	mytid = pvm_mytid();
-	nazwa = tidToChar(mytid);
 	myIndex = getIndexByTid(mytid);
 	/**
 	  * internal
@@ -260,7 +247,7 @@ main()
 		//sekcja lokalna()
 		sleep(1);
 		//sekcja lokalna()
-
+		activeShips[myIndex] = 1;
 		e_send(0, REQUEST);
 		ready = 0;
 		emptyArray(permissions, numberOfShips);
@@ -273,9 +260,10 @@ main()
 			}*/	
 			hehe++;
 			if (hehe%1000==0) {
+				sleep(1);
 				saveChar("Nieskonczonosc");
 			}
-			activeShips[myIndex] = 0;
+			permissions[myIndex] = 1;
 			if ( equalArrays(permissions, activeShips) ) {
 				saveChar("Rownaja mi sie arraysy");
 				ready = 1;
@@ -288,11 +276,12 @@ main()
 					}
 					e_receive();
 				}
-
+				activeShips[myIndex] = 0;
 				removeTowboats(reservedTowboats);
 				e_send(0, ENTRY);
 			}
 		}
+
 		// sekcja krytyczna
 		sleep(1);
 		// sekcja krytyczna
