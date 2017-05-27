@@ -11,6 +11,13 @@ int getIndexByTid(int tid, int tids[]) {
 	}
 }
 
+double current_timestamp() {
+     struct timeval te; 
+     gettimeofday(&te, NULL);
+     double milliseconds = te.tv_sec*1000 + te.tv_usec/1000;
+     return milliseconds;
+}
+
 main()
 {
 	int mytid = pvm_mytid();
@@ -34,31 +41,34 @@ main()
 
 	nproc = pvm_spawn(SLAVENAME, NULL, PvmTaskDefault, "", numberOfShips, tids);
 
-	double prior = 0;
-	for( i = 0 ; i < nproc ; i++ )
+	double *prior = malloc (sizeof (double) * numberOfShips);
+	for ( i = 0; i < numberOfShips; i++) {
+		prior[i] = current_timestamp() + (i*0.1);
+	}
+
+	for ( i = 0; i < nproc; i++ )
 	{
 		pvm_initsend(PvmDataDefault);
 		pvm_pkint(&mytid, 1, 1);
 		pvm_pkint(&numberOfShips, 1, 1);
-		pvm_pkdouble(&prior, 1, 1);
+		pvm_pkdouble(prior, numberOfShips, 1);
 		pvm_pkint(&neededTowboats[i], 1, 1);
 		pvm_pkint(tids, numberOfShips, 1);
 		pvm_pkint(&numberOfTowboats, 1, 1);
-		pvm_send(tids[i], MSG_MSTR);
-		prior++;
+	   	pvm_send(tids[i], MSG_MSTR);
 	}
 
 	int counter = 1;
 	while(true) {
 		int slaveTid, type, receiver, sender;
 		double priorit, mypriorit;
+		double *priorities = malloc (sizeof (double) * numberOfShips);
 		short myActive;
 		short *ships = malloc (sizeof (short) * numberOfShips);
 		short *tow = malloc (sizeof (short) * numberOfTowboats);
 		pvm_recv(-1, RAPORT);
 		pvm_upkint(&type, 1, 1);
 		pvm_upkint(&slaveTid, 1, 1);
-		//printf("%d ", counter);
 		counter++;
 		printf("%s%d ", KWHT, slaveTid);
 		switch( type ) {
@@ -85,9 +95,9 @@ main()
 					pvm_upkint(&sender, 1, 1);
 					printf(" od %d", sender);
 					pvm_upkdouble(&priorit, 1, 1);
-					printf(" z priorytetem %.f", priorit);
+					printf(" z priorytetem %.1f", priorit);
 					pvm_upkdouble(&mypriorit, 1, 1);
-					printf(" mam priorytet %.f", mypriorit);
+					printf(" mam priorytet %.1f", mypriorit);
 					pvm_upkshort(&myActive, 1, 1);
 					if (myActive) {
 						printf(" i jestem aktywny \n");
@@ -135,7 +145,7 @@ main()
 				}
 			case 7:
 				{
-					printf("Odebralem ENTRY");
+					printf("%sOdebralem ENTRY", KYEL);
 					pvm_upkint(&sender, 1, 1);
 					printf(" od %d", sender);
 					pvm_upkshort(tow, numberOfTowboats, 1);
@@ -178,10 +188,10 @@ main()
 				}
 			case 11:
 				{
-					printf("Czekam z takimi tablicami permissions");
-					pvm_upkshort(ships, numberOfShips, 1);
+					printf("Czekam z takimi tablicami priorities");
+					pvm_upkdouble(priorities, numberOfShips, 1);
 					for (i=0; i<numberOfShips; i++) {
-						printf(" %d", ships[i]);
+						printf(" %.1f", priorities[i]);
 					}
 					printf(" i activeShips");
 					pvm_upkshort(ships, numberOfShips, 1);
@@ -189,7 +199,7 @@ main()
 						printf(" %d", ships[i]);
 					}
 					pvm_upkdouble(&mypriorit, 1, 1);
-					printf(" mam priorytet %.f", mypriorit);
+					printf(" mam priorytet %.1f", mypriorit);
 					printf("\n");
 					break;
 				}
@@ -220,9 +230,8 @@ main()
 					}
 					printf("\n");
 					break;
-					}
+				}
 		}
 	}
 	pvm_exit();
 }
-
