@@ -44,7 +44,7 @@ main()
 		pvm_pkint(&neededTowboats[i], 1, 1);
 		pvm_pkint(tids, numberOfShips, 1);
 		pvm_pkint(&numberOfTowboats, 1, 1);
-	   	pvm_send(tids[i], MSG_MSTR);
+		pvm_send(tids[i], MSG_MSTR);
 		prior++;
 	}
 
@@ -126,11 +126,11 @@ main()
 						printf("%s do %d", KGRN, a);
 					}
 					pvm_upkshort(tow, numberOfTowboats, 1);
-                                        printf(" z takimi holownikami");
-                                        for (i=0; i<numberOfTowboats; i++) {
-                                                printf(" %d", tow[i]);
-                                        }
-                                        printf("\n");
+					printf(" z takimi holownikami");
+					for (i=0; i<numberOfTowboats; i++) {
+						printf(" %d", tow[i]);
+					}
+					printf("\n");
 					break;
 				}
 			case 7:
@@ -209,19 +209,18 @@ main()
 					break;
 				}
 			case 13:
-                                {
-                                        printf("%sWystapil blad", KRED);
-                                        pvm_upkint(&sender, 1, 1);
-                                        printf("%s statek nr %d", KRED, sender);
-                                        pvm_upkshort(tow, numberOfTowboats, 1);
-                                        printf("%s ma zarezerwowane te same holowniki co ja:", KRED);
-                                        for (i=0; i<numberOfTowboats; i++) {
-                                                printf("%s %d", KRED, tow[i]);
-                                        }
-                                        printf("\n");
-                                        break;
-                                }
-
+				{
+					printf("%sWystapil blad", KRED);
+					pvm_upkint(&sender, 1, 1);
+					printf("%s statek nr %d", KRED, sender);
+					pvm_upkshort(tow, numberOfTowboats, 1);
+					printf("%s ma zarezerwowane te same holowniki co ja:", KRED);
+					for (i=0; i<numberOfTowboats; i++) {
+						printf("%s %d", KRED, tow[i]);
+					}
+					printf("\n");
+					break;
+					}
 		}
 	}
 	pvm_exit();
