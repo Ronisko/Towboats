@@ -8,7 +8,7 @@ int *ships;
 short *activeShips;
 short *availableTowboats, *reservedTowboats;
 int *waitingForRelease;
-bool permission;
+bool permi;
 
 
 double current_timestamp() {
@@ -264,6 +264,7 @@ bool e_receive(bool blocking) {
 		}
 		sendRel(index, towboats);
 	}
+	if(!blocking) {
 	if (pvm_nrecv(-1, PERMISSION)) {
 		returned = true;
 		pvm_upkint(&index, 1, 1);
@@ -271,20 +272,24 @@ bool e_receive(bool blocking) {
 		if (next != myIndex) {
 			e_send(ships[next], PERMISSION);
 		} else {
-			permission = true;
+			returned = false;
+			permi = true;
+			sendPerm(index);
 		}
 	}
-
+}
 	free(towboats);
 	if (blocking) {
-		returned = true;
 		pvm_recv(-1, PERMISSION);
 		pvm_upkint(&index, 1, 1);
 		int next = nextReserving(); 
 		if (next != myIndex) {
+			returned = true;
 			e_send(ships[next], PERMISSION);
 		} else {
-			permission = true;
+			returned =false;
+			permi = true;
+			sendPerm(index);
 		}
 	}
 	return returned;
@@ -297,17 +302,17 @@ void emptyArray(short array[], int length) {
 		array[i] = 0;
 }
 
-// bool isAvailable() {
-// 	int i;
-// 	for (i = 0; i < numberOfShips; i++) {
-// 		if (i != myIndex && activeShips[i] != 0) {
-// 			if (priorities[i] <= priorities[myIndex]) {
-// 				return false;
-// 			}
-// 		}
-// 	}
-// return true;
-// }
+bool isAvailable() {
+ 	int i;
+ 	for (i = 0; i < numberOfShips; i++) {
+ 		if (i != myIndex && activeShips[i] != 0) {
+ 			if (priorities[i] <= priorities[myIndex]) {
+ 				return false;
+ 			}
+ 		}
+ 	}
+	return true;
+}
 
 bool allNeededReserved() {
 	if (numberOf(reservedTowboats) == neededTowboats)
@@ -362,9 +367,9 @@ main()
 	
 	myIndex = getIndexByTid(mytid);
 	if (myIndex == 0) {
-		permission = true;
+		permi = true;
 	} else {
-		permission = false;
+		permi = false;
 	}
 	for (i=0; i < numberOfTowboats; i++) {
 		waitingForRelease[i] = -1;
@@ -387,24 +392,34 @@ main()
 		while(e_receive(false)) {}
 		
 		sendStan();
-
-		while (!permission) {
+		
+		while (!permi) {
 			while(e_receive(true)) {}
 			sendStan();
 		}
+		while(e_receive(false)) {}
+		while(!isAvailable()) {
+                        e_receive(false);
+                }
+
 		sendTowb();
 		while ( !allNeededReserved() ) {
 			if (numberOf(availableTowboats) > 0) {	
 				reserveTowboats();
 				removeTowboats(reservedTowboats);
 				sendStan();
+			
 			}
 			while(e_receive(false)) {}
 		}
+		sendTowb();
 		removeTowboats(reservedTowboats);
 		while(e_receive(false)) {}
 		e_send(0, ENTRY);
-		permission = false;
+		permi = false;
+		while(nextReserving() == -1) {
+			e_receive(false);
+		}
 		e_send(0, PERMISSION);
 
 		while(e_receive(false)) {}
@@ -422,5 +437,4 @@ main()
 		while(e_receive(false)) {}
 	}
 }
-int min
 
