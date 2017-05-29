@@ -17,6 +17,7 @@ double current_timestamp() {
 	double milliseconds = te.tv_sec*1000 + te.tv_usec/1000;
 	return milliseconds;
 }
+
 void sendStan() {
 	pvm_initsend(PvmDataDefault);
 	int a  = 11;
@@ -132,6 +133,13 @@ void removeTowboats(short towboats[]) {
 
 int nextReserving() {
 	int i, index = 0, min = priorities[0];// uwaga to możę nie być aktywny
+	for (i = 0; i < numberOfShips; i++) {
+		if (activeShips[i] != 0) { //rózne od 0 czy równe 1
+			index = i;
+			min = priorities[i];
+			break;
+		}
+	}
 	for (i = 1; i < numberOfShips; i++) {
 		if (activeShips[i] != 0) {
 			if (min > priorities[i]) {
@@ -150,7 +158,8 @@ void e_send( int receiver, int message ) {
 	switch(message) {
 		case 2: // PERMISSION
 			{
-				receiver = nextReserving();
+				int next = nextReserving();
+				receiver = ships[next];
 				break;
 			}
 		case 3: // REQUEST
@@ -221,8 +230,9 @@ void e_send( int receiver, int message ) {
 
 bool e_receive(bool blocking) {
 	int index, i;
+	bool returned = false;
+
 	if (!blocking) {
-		bool returned = false;
 		double receivedPriority;
 		short *towboats = malloc (sizeof (short) * numberOfTowboats);
 
@@ -367,19 +377,19 @@ main()
 		reservedTowboats[i] = 0;
 	}
 	while (true) {
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 		//sekcja lokalna()
 		sleep(1);
 		send1(1);
 		//sekcja lokalna()
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 		e_send(0, REQUEST);
 
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 
 		sendStan();
 
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 		
 		sendStan();
 
@@ -394,24 +404,24 @@ main()
 				removeTowboats(reservedTowboats);
 				sendStan();
 			}
-			while(e_receive()) {}
+			while(e_receive(false)) {}
 		}
 		removeTowboats(reservedTowboats);
 		e_send(0, ENTRY);
 		e_send(0, PERMISSION);
 
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 		
 		// sekcja krytyczna
 		sleep(1);
 		send1(8);
 		// sekcja krytyczna
 		
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 		addTowboats(reservedTowboats);
 		e_send(0, RELEASE);
 
 		emptyArray(reservedTowboats, numberOfTowboats);
-		while(e_receive()) {}
+		while(e_receive(false)) {}
 	}
 }
