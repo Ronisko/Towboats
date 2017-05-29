@@ -132,7 +132,8 @@ void removeTowboats(short towboats[]) {
 }
 
 int nextReserving() {
-	int i, index = 0, min = priorities[0];// uwaga to możę nie być aktywny
+	int i, index = 0;
+	double min = priorities[0];// uwaga to możę nie być aktywny
 	for (i = 0; i < numberOfShips; i++) {
 		if (activeShips[i] != 0) { //rózne od 0 czy równe 1
 			index = i;
@@ -140,7 +141,7 @@ int nextReserving() {
 			break;
 		}
 	}
-	for (i = 1; i < numberOfShips; i++) {
+	for (i = 0; i < numberOfShips; i++) {
 		if (activeShips[i] != 0) {
 			if (min > priorities[i]) {
 				min = priorities[i];
@@ -232,58 +233,57 @@ bool e_receive(bool blocking) {
 	int index, i;
 	bool returned = false;
 
-	if (!blocking) {
-		double receivedPriority;
-		short *towboats = malloc (sizeof (short) * numberOfTowboats);
+	double receivedPriority;
+	short *towboats = malloc (sizeof (short) * numberOfTowboats);
 
-		if ( pvm_nrecv(-1, REQUEST) ) {
-			returned = true;
-			pvm_upkint(&index, 1, 1);
-			pvm_upkdouble(&receivedPriority, 1, 1);
-			priorities[index] = receivedPriority;
-			activeShips[index] = 1;
-			sendReq(index, receivedPriority, priorities[myIndex], activeShips[myIndex]);
-		}
-		if ( pvm_nrecv(-1, ENTRY) ) {
-			returned = true;
-			pvm_upkint(&index, 1, 1);
-			pvm_upkshort(towboats, numberOfTowboats, 1);
-			removeTowboats(towboats);
-			for (i = 0; i < numberOfTowboats; i++)
-				if (towboats[i] == 1)
-					waitingForRelease[i] = index;
+	if ( pvm_nrecv(-1, REQUEST) ) {
+		returned = true;
+		pvm_upkint(&index, 1, 1);
+		pvm_upkdouble(&receivedPriority, 1, 1);
+		priorities[index] = receivedPriority;
+		activeShips[index] = 1;
+		sendReq(index, receivedPriority, priorities[myIndex], activeShips[myIndex]);
+	}
+	if ( pvm_nrecv(-1, ENTRY) ) {
+		returned = true;
+		pvm_upkint(&index, 1, 1);
+		pvm_upkshort(towboats, numberOfTowboats, 1);
+		removeTowboats(towboats);
+		for (i = 0; i < numberOfTowboats; i++)
+			if (towboats[i] == 1)
+				waitingForRelease[i] = index;
 
-			isOk(index, towboats);
-			activeShips[index] = 0;
-			sendEntr(index, towboats);
-		}
-	
-	
-		if ( pvm_nrecv(-1, RELEASE) ) {
-			returned = true;
-			pvm_upkint(&index, 1, 1);
-			pvm_upkshort(towboats, numberOfTowboats, 1);
-			for (i = 0; i < numberOfTowboats; i++) {
-				if (towboats[i] == 1 && waitingForRelease[i] == index) {
-					availableTowboats[i] = 1;
-					waitingForRelease[i] = -1;
-				}
-			}
-			sendRel(index, towboats);
-		}
-		if (pvm_nrecv(-1, PERMISSION)) {
-			returned = true;
-			pvm_upkint(&index, 1, 1);
-			int next = nextReserving(); 
-			if (next != myIndex) {
-				e_send(ships[next], PERMISSION);
-			} else {
-				permission = true;
+		isOk(index, towboats);
+		activeShips[index] = 0;
+		sendEntr(index, towboats);
+	}
+
+
+	if ( pvm_nrecv(-1, RELEASE) ) {
+		returned = true;
+		pvm_upkint(&index, 1, 1);
+		pvm_upkshort(towboats, numberOfTowboats, 1);
+		for (i = 0; i < numberOfTowboats; i++) {
+			if (towboats[i] == 1 && waitingForRelease[i] == index) {
+				availableTowboats[i] = 1;
+				waitingForRelease[i] = -1;
 			}
 		}
+		sendRel(index, towboats);
+	}
+	if (pvm_nrecv(-1, PERMISSION)) {
+		returned = true;
+		pvm_upkint(&index, 1, 1);
+		int next = nextReserving(); 
+		if (next != myIndex) {
+			e_send(ships[next], PERMISSION);
+		} else {
+			permission = true;
+		}
+	}
 
-		free(towboats);
-	} else {
+	free(towboats);
+	if (blocking) {}
 		returned = true;
 		pvm_recv(-1, PERMISSION);
 		pvm_upkint(&index, 1, 1);
@@ -304,17 +304,17 @@ void emptyArray(short array[], int length) {
 		array[i] = 0;
 }
 
-bool isAvailable() {
-	int i;
-	for (i = 0; i < numberOfShips; i++) {
-		if (i != myIndex && activeShips[i] != 0) {
-			if (priorities[i] <= priorities[myIndex]) {
-				return false;
-			}
-		}
-	}
-return true;
-}
+// bool isAvailable() {
+// 	int i;
+// 	for (i = 0; i < numberOfShips; i++) {
+// 		if (i != myIndex && activeShips[i] != 0) {
+// 			if (priorities[i] <= priorities[myIndex]) {
+// 				return false;
+// 			}
+// 		}
+// 	}
+// return true;
+// }
 
 bool allNeededReserved() {
 	if (numberOf(reservedTowboats) == neededTowboats)
@@ -407,7 +407,9 @@ main()
 			while(e_receive(false)) {}
 		}
 		removeTowboats(reservedTowboats);
+		while(e_receive(false)) {}
 		e_send(0, ENTRY);
+		permission = false;
 		e_send(0, PERMISSION);
 
 		while(e_receive(false)) {}
