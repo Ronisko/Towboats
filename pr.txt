@@ -8,13 +8,11 @@ end record
 
 liczbaPotrzebnychHolowników		: INTEGER
 pcktOut							: PACKET
-zgody 							: array [] of BOOLEAN
-holownikiDostępne 				: array [] of INTEGER
-holownikiPosiadane 				: array [] of INTEGER
-holownikiZarezerwowane			: array [] of INTEGER
+holownikiDostępne 				: array [] of BOOLEAN
+holownikiZarezerwowane			: array [] of BOOLEAN
+oczekiwanieNaZwolnienie			: array [] of INTEGER
 statkiAktywne 					: array [] of BOOLEAN
-priorytet 						: INTEGER
-gotowy							: BOOLEAN
+priorytety						: array [] of DOUBLE
 
 when e_internal(Pi, *) { do
 	for (int j = 0; j < S; ++j)
@@ -26,76 +24,70 @@ when e_internal(Pi, *) { do
 } end when;
 
 when e_send(Pi, Pj, msgOut: MESSAGE) { do
-	pcktOut.holowniki = holownikiPosiadane; // załadowanie informacji o zagarniętych holownikach używane przy "WEJŚCIE" i "ZWOLNIENIE"
+	pcktOut.holowniki = holownikiZarezerwowane; // załadowanie informacji o zagarniętych holownikach używane przy "WEJŚCIE" i "ZWOLNIENIE"
 	pcktOut.priorytet := priorytet; // informacja o priorytecie używane przy "ŻĄDANIE"
 	pcktOut.type := msgOut;
 	send(Qi, Qj, pcktOut);
 } end when;
 
 when e_receive(Qj, Qi, pcktIn: PACKET) { do
-	// jeśli otrzymaliśmy "ZGODA" dodajemy dany statek do listy
-	if (pcktIn.type == "ZGODA") {
-		zgody.push(Qj); 
-	}
 	// jeśli otrzymaliśmy "ŻĄDANIE":
-	else if (pcktIn.type == "ŻĄDANIE") {
-		statkiAktywne.push(Qj); // oznaczamy statek nadawcę jako aktywny
-		if (statkiAktywne[i] == true) { // jeśli jesteśmy aktywni
-			
-			if (pcktIn.priorytet > priorytet) {  
-				e_send(Qi, Qj, "ZGODA"); // wysyłamy "ZGODA"
-			}
-		}
+	if (pcktIn.type == "ŻĄDANIE") {
+		priorytety[j] = pcktIn.priorytet;
+		statkiAktywne[i] = true; // oznaczamy statek nadawcę jako aktywny
 	}
 	// jeśli otrzymaliśmy "WEJŚCIE":
-	else if (pcktIn.type == "WEJŚCIE") {
-		holownikiDostępne.remove(pcktIn.holowniki) // usuwamy zagarnięte holowniki z dostępnych
-		statkiAktywne.remove(Qj); // usuwamy statek będący w sekcji krytycznej z aktywnych
+	if (pcktIn.type == "WEJŚCIE") {
+		removeFrom(holownikiDostępne, pcktIn.holowniki);// usuwamy zagarnięte holowniki z dostępnych
+		dodajDoOczekiwanych(pcktIn.holowniki, oczekiwanieNaZwolnienie); // przypisanie do tablicy oczekiwanieNaZwolnienie tida użytkownika, który je posiada
+		statkiAktywne[j] = false; // usuwamy statek będący w sekcji krytycznej z aktywnych
 	}
 	// jeśli otrzymaliśmy "ZWOLNIENIE":
-	else if (pcktIn.type == "ZWOLNIENIE") {
+	if (pcktIn.type == "ZWOLNIENIE") {
+		usunOczekiwaneOtrzymane(pcktIn.holowniki, oczekiwanieNaZwolnienie); // usun z oczekiwanych otrzymane od właściwego tida
 		holownikiDostępne.push(pcktIn.holowniki); // dodajemy zwolnione holowniki do dostępnych
 	}
 	
 } end when;
 
-while(1) {
-	SEKCJA_LOKALNA();
+while (true) {
+		e_receive();
+	
+		// sekcja lokalna
+		sleep(1);
+		// sekcja lokalna
 
-	// ogłoszenie wszystkim statkom chęci wejścia do sekcji krytycznej
-	e_send(Qi, *, "ŻĄDANIE");
-	// pętla tak długo, aż nie otrzymamy informacji od wszystkich aktywnych statków, że można wejść
-	gotowy = false;
-	zgody = [];
-	while(!gotowy) {
-		// sprawdzamy czy jest jakaś wiadomość do odczytania
+		e_receive();
+		activeShips[i] = true;
+		priorities[myIndex] = timestamp();
+		e_send(0, REQUEST);
+
 		e_receive();
 
-		// gdy otrzymamy zgodę od każdego z aktywnych statków		
-		if ( zgody.length == statkiAktywne.length ) {
-			gotowy = true;
-			//w nieskończonej pętli rezerwujemy holowniki z listy dostępnych 
-			while ( true ) {
-				holownikiZarezerwowane = holownikiDostępne.slice ( liczbaPotrzebnychHolowników )
-				// gdy mamy wystarczającą liczbę holowników przerywamy pętlę
-				if ( liczbaPotrzebnychHolowników != holownikiZarezerwowane.length() ) {
-					break; 
-				}
-				// gdy brakuje nam holowników słuchamy nadchodzących wieści o zwolnionych holownikach
-				e_receive();
-			}
-			//wysłanie informacji o zarezerwowanych holownikach 
-			holownikiKtoreMam.push(holownikiZarezerwowane);
-			holownikiDostępne.remove(holownikiZarezerwowane);
-			e_send(Qi, *, "WEJŚCIE");
-		} 
-	}
+		while (!isAvailable()) {
+			e_receive();
+		}
 
-	SEKCJA_KRYTYCZNA();
-	
-	//wyjście z sekcji krytycznej wysłanie komunikatu o zwolnieniu 
-	holownikiKtoreMam.remove(holownikiZarezerwowane)
-	holownikiDostępne.push(holownikiZarezerwowane)
-	e_send(Qi, *, "ZWOLNIENIE");
+		while ( !allNeededReserved() ) {
+			if (numberOf(availableTowboats) > 0) {	
+				reserveTowboats();
+				usunZAktywnych(holownikiZarezerwowane);
+			}
+			e_receive();
+		}
+		activeShips[i] = false; 
+		e_send(0, ENTRY);
+			
+		e_receive();
+		
+		// sekcja krytyczna
+		sleep(1);
+		// sekcja krytyczna
+		
+		e_receive();
+		addTowboats(holownikiZarezerwowane);
+		e_send(0, RELEASE);
+		emptyArray(holownikiZarezerwowane, numberOfTowboats);
+	}
 }
 //TODO pozmieniać push na odwołanie się do indeksu tablicy

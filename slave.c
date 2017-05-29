@@ -97,6 +97,15 @@ bool e_receive() {
 	int index, i;
 	double receivedPriority;
 	short *towboats = malloc (sizeof (short) * numberOfTowboats);
+
+	if ( pvm_nrecv(-1, REQUEST) ) {
+		returned = true;
+		pvm_upkint(&index, 1, 1);
+		pvm_upkdouble(&receivedPriority, 1, 1);
+		priorities[index] = receivedPriority;
+		activeShips[index] = 1;
+	}
+
 	if ( pvm_nrecv(-1, ENTRY) ) {
 		returned = true;
 		pvm_upkint(&index, 1, 1);
@@ -109,13 +118,7 @@ bool e_receive() {
 		isOk(index, towboats);
 		activeShips[index] = 0;
 	}
-	if ( pvm_nrecv(-1, REQUEST) ) {
-		returned = true;
-		pvm_upkint(&index, 1, 1);
-		pvm_upkdouble(&receivedPriority, 1, 1);
-		priorities[index] = receivedPriority;
-		activeShips[index] = 1;
-	}
+	
 	
 	if ( pvm_nrecv(-1, RELEASE) ) {
 		returned = true;
@@ -128,6 +131,8 @@ bool e_receive() {
 			}
 		}
 	}
+	
+	free(towboats);
 	return returned;
 }
 
