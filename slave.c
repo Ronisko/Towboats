@@ -8,7 +8,7 @@ int *ships;
 short *activeShips;
 short *availableTowboats, *reservedTowboats;
 int *waitingForRelease;
-bool permission = false;
+bool permission;
 
 
 double current_timestamp() {
@@ -132,18 +132,11 @@ void removeTowboats(short towboats[]) {
 }
 
 int nextReserving() {
-	int i, index = 0;
-	double min = priorities[0];// uwaga to możę nie być aktywny
-	for (i = 0; i < numberOfShips; i++) {
-		if (activeShips[i] != 0) { //rózne od 0 czy równe 1
-			index = i;
-			min = priorities[i];
-			break;
-		}
-	}
-	for (i = 0; i < numberOfShips; i++) {
-		if (activeShips[i] != 0) {
-			if (min > priorities[i]) {
+	int i, index = -1;
+	double min = -1;
+	for(i=0; i<numberOfShips; i++){
+		if(activeShips[i] == 1){
+			if(priorities[i] < min || min < 0){
 				min = priorities[i];
 				index = i;
 			}
@@ -283,7 +276,7 @@ bool e_receive(bool blocking) {
 	}
 
 	free(towboats);
-	if (blocking) {}
+	if (blocking) {
 		returned = true;
 		pvm_recv(-1, PERMISSION);
 		pvm_upkint(&index, 1, 1);
@@ -370,6 +363,8 @@ main()
 	myIndex = getIndexByTid(mytid);
 	if (myIndex == 0) {
 		permission = true;
+	} else {
+		permission = false;
 	}
 	for (i=0; i < numberOfTowboats; i++) {
 		waitingForRelease[i] = -1;
@@ -427,3 +422,5 @@ main()
 		while(e_receive(false)) {}
 	}
 }
+int min
+
