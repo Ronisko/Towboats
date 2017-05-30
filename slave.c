@@ -135,7 +135,7 @@ int nextReserving() {
 	int i, index = -1;
 	double min = -1;
 	for(i=0; i<numberOfShips; i++){
-		if(activeShips[i] == 1){
+		if(activeShips[i] == 1 && i != myIndex){
 			if(priorities[i] < min || min < 0){
 				min = priorities[i];
 				index = i;
@@ -150,12 +150,6 @@ void e_send( int receiver, int message ) {
 	pvm_initsend(PvmDataDefault);
 	pvm_pkint(&myIndex, 1, 1);
 	switch(message) {
-		case 2: // PERMISSION
-			{
-				int next = nextReserving();
-				receiver = ships[next];
-				break;
-			}
 		case 3: // REQUEST
 			{
 				activeShips[myIndex] = 1;
@@ -167,6 +161,8 @@ void e_send( int receiver, int message ) {
 			{
 				activeShips[myIndex] = 0;
 				pvm_pkshort(reservedTowboats, numberOfTowboats, 1);
+				int next = nextReserving();
+				pvm_pkint(&next, 1, 1);
 				break;
 			}
 		case 5: // RELEASE
@@ -223,7 +219,7 @@ void e_send( int receiver, int message ) {
 }
 
 bool e_receive(bool blocking) {
-	int index, i;
+	int index, i, next;
 	bool returned = false;
 
 	double receivedPriority;
@@ -237,20 +233,6 @@ bool e_receive(bool blocking) {
 		activeShips[index] = 1;
 		sendReq(index, receivedPriority, priorities[myIndex], activeShips[myIndex]);
 	}
-	if ( pvm_nrecv(-1, ENTRY) ) {
-		returned = true;
-		pvm_upkint(&index, 1, 1);
-		pvm_upkshort(towboats, numberOfTowboats, 1);
-		removeTowboats(towboats);
-		for (i = 0; i < numberOfTowboats; i++)
-			if (towboats[i] == 1)
-				waitingForRelease[i] = index;
-
-		isOk(index, towboats);
-		activeShips[index] = 0;
-		sendEntr(index, towboats);
-	}
-
 
 	if ( pvm_nrecv(-1, RELEASE) ) {
 		returned = true;
@@ -264,34 +246,45 @@ bool e_receive(bool blocking) {
 		}
 		sendRel(index, towboats);
 	}
-	if(!blocking) {
-	if (pvm_nrecv(-1, PERMISSION)) {
+	
+	if(blocking) {
+		pvm_recv(-1, ENTRY);
 		returned = true;
 		pvm_upkint(&index, 1, 1);
-		int next = nextReserving(); 
-		if (next != myIndex) {
-			e_send(ships[next], PERMISSION);
-		} else {
-			returned = false;
+		pvm_upkshort(towboats, numberOfTowboats, 1);
+		pvm_upkint(&next, 1, 1);
+		removeTowboats(towboats);
+		for (i = 0; i < numberOfTowboats; i++)
+			if (towboats[i] == 1)
+				waitingForRelease[i] = index;
+			
+		if (next == myIndex) {
 			permi = true;
-			sendPerm(index);
 		}
-	}
-}
-	free(towboats);
-	if (blocking) {
-		pvm_recv(-1, PERMISSION);
-		pvm_upkint(&index, 1, 1);
-		int next = nextReserving(); 
-		if (next != myIndex) {
+		isOk(index, towboats);
+		activeShips[index] = 0;
+		sendEntr(index, towboats);
+	} else {
+		if ( pvm_nrecv(-1, ENTRY) ) {
 			returned = true;
-			e_send(ships[next], PERMISSION);
-		} else {
-			returned =false;
-			permi = true;
-			sendPerm(index);
+			pvm_upkint(&index, 1, 1);
+			pvm_upkshort(towboats, numberOfTowboats, 1);
+			pvm_upkint(&next, 1, 1);
+			removeTowboats(towboats);
+			for (i = 0; i < numberOfTowboats; i++)
+				if (towboats[i] == 1)
+					waitingForRelease[i] = index;
+
+			if (next == myIndex) {
+				permi = true;
+
+			}
+			isOk(index, towboats);
+			activeShips[index] = 0;
+			sendEntr(index, towboats);
 		}
 	}
+	free(towboats);
 	return returned;
 }
 
@@ -341,6 +334,9 @@ int numberOf(short array[]) {
 
 	return counter;
 }
+void checkMessages() {
+	while(e_receive(false)) {}
+}
 
 main()
 {
@@ -371,25 +367,27 @@ main()
 	} else {
 		permi = false;
 	}
+
 	for (i=0; i < numberOfTowboats; i++) {
 		waitingForRelease[i] = -1;
 		availableTowboats[i] = 1;
 		reservedTowboats[i] = 0;
 	}
+
 	while (true) {
-		while(e_receive(false)) {}
+		checkMessages();
 		//sekcja lokalna()
 		sleep(1);
 		send1(1);
 		//sekcja lokalna()
-		while(e_receive(false)) {}
+		checkMessages();
 		e_send(0, REQUEST);
 
-		while(e_receive(false)) {}
+		checkMessages();
 
 		sendStan();
 
-		while(e_receive(false)) {}
+		checkMessages();
 		
 		sendStan();
 		
@@ -397,10 +395,11 @@ main()
 			while(e_receive(true)) {}
 			sendStan();
 		}
-		while(e_receive(false)) {}
-		while(!isAvailable()) {
-                        e_receive(false);
-                }
+		
+		checkMessages();
+		// while(!isAvailable()) {
+		// 	e_receive(false);
+		// }
 
 		sendTowb();
 		while ( !allNeededReserved() ) {
@@ -410,31 +409,31 @@ main()
 				sendStan();
 			
 			}
-			while(e_receive(false)) {}
+			checkMessages();
 		}
 		sendTowb();
 		removeTowboats(reservedTowboats);
-		while(e_receive(false)) {}
-		e_send(0, ENTRY);
-		permi = false;
-		while(nextReserving() == -1) {
+		checkMessages();
+		while(nextReserving() == -1 || nextReserving() == myIndex) {
 			e_receive(false);
 		}
-		e_send(0, PERMISSION);
+		e_send(0, ENTRY);
+		permi = false;
+		
 
-		while(e_receive(false)) {}
+		checkMessages();
 		
 		// sekcja krytyczna
 		sleep(1);
 		send1(8);
 		// sekcja krytyczna
 		
-		while(e_receive(false)) {}
+		checkMessages();
 		addTowboats(reservedTowboats);
 		e_send(0, RELEASE);
 
 		emptyArray(reservedTowboats, numberOfTowboats);
-		while(e_receive(false)) {}
+		checkMessages();
 	}
 }
 
