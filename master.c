@@ -153,7 +153,9 @@ main()
 					for (i=0; i<numberOfTowboats; i++) {
 						printf(" %d", tow[i]);
 					}
-					printf("\n");
+					int next;
+					pvm_upkint(&next, 1, 1);
+					printf(" i takim next: %d\n", next);
 					break;
 				}
 			case 8:

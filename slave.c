@@ -9,6 +9,7 @@ short *activeShips;
 short *availableTowboats, *reservedTowboats;
 int *waitingForRelease;
 bool permi;
+int waitingForEntry = 0;
 
 
 double current_timestamp() {
@@ -48,13 +49,14 @@ void sendReq(int ind, double prio, double myprio, short myActive){
 	pvm_send(masterTid, RAPORT);
 }
 
-void sendEntr(int ind, short tow[]){
+void sendEntr(int ind, short tow[], int next){
 	pvm_initsend(PvmDataDefault);
 	int a  = 7;
 	pvm_pkint(&a, 1, 1);
 	pvm_pkint(&myIndex, 1, 1);
 	pvm_pkint(&ind, 1, 1);
 	pvm_pkshort(tow, numberOfTowboats, 1);
+	pvm_pkint(&next, 1, 1);
 	pvm_send(masterTid, RAPORT);
 }
 
@@ -147,6 +149,7 @@ int nextReserving() {
 
 
 void e_send( int receiver, int message ) {
+	int next;
 	pvm_initsend(PvmDataDefault);
 	pvm_pkint(&myIndex, 1, 1);
 	switch(message) {
@@ -161,8 +164,9 @@ void e_send( int receiver, int message ) {
 			{
 				activeShips[myIndex] = 0;
 				pvm_pkshort(reservedTowboats, numberOfTowboats, 1);
-				int next = nextReserving();
+				next = nextReserving();
 				pvm_pkint(&next, 1, 1);
+				waitingForEntry = next;
 				break;
 			}
 		case 5: // RELEASE
@@ -218,7 +222,7 @@ void e_send( int receiver, int message ) {
 	pvm_send(masterTid, RAPORT);
 }
 
-bool e_receive(bool blocking) {
+bool e_receive() {
 	int index, i, next;
 	bool returned = false;
 
@@ -231,7 +235,7 @@ bool e_receive(bool blocking) {
 		pvm_upkdouble(&receivedPriority, 1, 1);
 		priorities[index] = receivedPriority;
 		activeShips[index] = 1;
-		sendReq(index, receivedPriority, priorities[myIndex], activeShips[myIndex]);
+		//sendReq(index, receivedPriority, priorities[myIndex], activeShips[myIndex]);
 	}
 
 	if ( pvm_nrecv(-1, RELEASE) ) {
@@ -244,45 +248,26 @@ bool e_receive(bool blocking) {
 				waitingForRelease[i] = -1;
 			}
 		}
-		sendRel(index, towboats);
+		//sendRel(index, towboats);
 	}
-	
-	if(blocking) {
-		pvm_recv(-1, ENTRY);
+	if ( pvm_nrecv(ships[waitingForEntry], ENTRY) ) {
 		returned = true;
 		pvm_upkint(&index, 1, 1);
 		pvm_upkshort(towboats, numberOfTowboats, 1);
 		pvm_upkint(&next, 1, 1);
+		if (next == myIndex) {
+			permi = true;
+		} else {
+			waitingForEntry = next;
+		}
 		removeTowboats(towboats);
 		for (i = 0; i < numberOfTowboats; i++)
 			if (towboats[i] == 1)
 				waitingForRelease[i] = index;
-			
-		if (next == myIndex) {
-			permi = true;
-		}
+
 		isOk(index, towboats);
 		activeShips[index] = 0;
-		sendEntr(index, towboats);
-	} else {
-		if ( pvm_nrecv(-1, ENTRY) ) {
-			returned = true;
-			pvm_upkint(&index, 1, 1);
-			pvm_upkshort(towboats, numberOfTowboats, 1);
-			pvm_upkint(&next, 1, 1);
-			removeTowboats(towboats);
-			for (i = 0; i < numberOfTowboats; i++)
-				if (towboats[i] == 1)
-					waitingForRelease[i] = index;
-
-			if (next == myIndex) {
-				permi = true;
-
-			}
-			isOk(index, towboats);
-			activeShips[index] = 0;
-			sendEntr(index, towboats);
-		}
+		//sendEntr(index, towboats, next);
 	}
 	free(towboats);
 	return returned;
@@ -296,14 +281,14 @@ void emptyArray(short array[], int length) {
 }
 
 bool isAvailable() {
- 	int i;
- 	for (i = 0; i < numberOfShips; i++) {
- 		if (i != myIndex && activeShips[i] != 0) {
- 			if (priorities[i] <= priorities[myIndex]) {
- 				return false;
- 			}
- 		}
- 	}
+	int i;
+	for (i = 0; i < numberOfShips; i++) {
+		if (i != myIndex && activeShips[i] != 0) {
+			if (priorities[i] <= priorities[myIndex]) {
+				return false;
+			}
+		}
+	}
 	return true;
 }
 
@@ -384,19 +369,14 @@ main()
 		e_send(0, REQUEST);
 
 		checkMessages();
-
-		sendStan();
-
-		checkMessages();
 		
 		sendStan();
 		
 		while (!permi) {
 			while(e_receive(true)) {}
-			sendStan();
 		}
-		
 		checkMessages();
+		//checkMessages();
 		// while(!isAvailable()) {
 		// 	e_receive(false);
 		// }
@@ -406,7 +386,6 @@ main()
 			if (numberOf(availableTowboats) > 0) {	
 				reserveTowboats();
 				removeTowboats(reservedTowboats);
-				sendStan();
 			
 			}
 			checkMessages();
@@ -414,7 +393,7 @@ main()
 		sendTowb();
 		removeTowboats(reservedTowboats);
 		checkMessages();
-		while(nextReserving() == -1 || nextReserving() == myIndex) {
+		while(nextReserving() == -1 ) {
 			e_receive(false);
 		}
 		e_send(0, ENTRY);
@@ -424,7 +403,7 @@ main()
 		checkMessages();
 		
 		// sekcja krytyczna
-		sleep(1);
+	//	sleep(1);
 		send1(8);
 		// sekcja krytyczna
 		
